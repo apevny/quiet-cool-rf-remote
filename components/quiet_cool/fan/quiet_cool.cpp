@@ -56,7 +56,11 @@ namespace esphome {
             this->write_state_();
             this->publish_state();
         }
-
+	// NEW: Setter for duration
+	void QuietCoolFan::set_current_duration(QuietCoolDuration duration) {
+ 	// ... (implementation to update duration_ and send command) ...
+	}
+	// Updated control() method to use current_duration_
         void QuietCoolFan::write_state_() {
             ESP_LOGVV(TAG, "write_state_: driving pins: state=%s ", 
                       (this->state ? "ON" : "OFF"));
