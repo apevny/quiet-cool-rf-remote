@@ -58,7 +58,22 @@ namespace esphome {
         }
 	// NEW: Setter for duration
 	void QuietCoolFan::set_current_duration(QuietCoolDuration duration) {
- 	// ... (implementation to update duration_ and send command) ...
+  		// 1. Store the new duration value in a member variable
+  		this->current_duration_ = duration; 
+
+  		// 2. Send the combined command (current speed + new duration) via the RF module
+  		if (this->quiet_cool_instance_ != nullptr) { // Make sure the RF module is initialized
+		    // Assuming you have a member variable 'this->current_speed_'
+		    // that stores the fan's current speed (Low, Medium, High).
+		    // The 'send' method of your QuietCool object takes both speed and duration.
+    			this->quiet_cool_instance_->send(this->current_speed_, this->current_duration_);
+    
+		    // Optional: Log for debugging
+		    ESP_LOGD("quiet_cool_fan", "Set duration to: %d. Sending command with speed: %d", 
+		             (int)this->current_duration_, (int)this->current_speed_);
+		  } else {
+		    ESP_LOGE("quiet_cool_fan", "QuietCool RF module not initialized when setting duration.");
+		  }
 	}
 	// Updated control() method to use current_duration_
         void QuietCoolFan::write_state_() {
