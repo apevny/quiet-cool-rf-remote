@@ -36,7 +36,7 @@ namespace esphome {
                 this->state = *call.get_state();
 
             QuietCoolSpeed qcspd = QUIETCOOL_SPEED_LOW;
-            QuietCoolDuration qcdur = QUIETCOOL_DURATION_ON;
+            QuietCoolDuration qcdur = QUIETCOOL_DURATION_4H;
             if (call.get_speed().has_value()) {
                 this->speed_ = *call.get_speed();
                 if (this->speed_ < 0.5) qcdur = QUIETCOOL_DURATION_OFF;
