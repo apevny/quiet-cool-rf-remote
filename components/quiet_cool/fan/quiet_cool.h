@@ -16,10 +16,6 @@ namespace esphome {
 	{
         public:
 
-	    // NEW: Setter for duration
-	    void set_current_duration(QuietCoolDuration duration);
-	    // NEW: Member to store current duration
-	    QuietCoolDuration current_duration_ = QUIETCOOL_DURATION_ON;
             void dump_config() override;
             fan::FanTraits get_traits() override;
             void setup() override;  // initialise radio
