@@ -1,68 +1,69 @@
-#include "quiet_cool.h"
-#include "esphome/core/log.h"
-#include "quietcool.h"
+#pragma once
+#include <stdint.h>
+#include <stddef.h>
+
+/*
+  CC1101 Pin Connections:
+  hdr   cc1101
+  1      19  GND
+  2      18  VCC
+  3      6   GDO0
+  4      7   CSn
+  5      1   SCK
+  6      20  MOSI
+  7      2   MISO
+  8      3   GDO2
+*/
 
 namespace esphome {
-    namespace quiet_cool {
-        
-        static const char *TAG = "quiet_cool.fan";
+namespace quiet_cool {
 
-        void QuietCoolFan::setup() {
-            if (!this->pins_set_) {
-                ESP_LOGE(TAG, "QuietCool pins not configured via YAML; radio not initialised");
-                return;
-            }
+enum QuietCoolSpeed {
+    QUIETCOOL_SPEED_HIGH   =  0xB0,
+    QUIETCOOL_SPEED_MEDIUM =  0xA0,
+    QUIETCOOL_SPEED_LOW    =  0x90,
+    QUIETCOOL_SPEED_LAST
+};
 
-            if (this->qc_ == nullptr) {
-                // Use standard VSPI pins (CLK18, MISO19, MOSI23) for ESP32 dev boards
-                this->qc_.reset(new QuietCool(this->csn_pin_, this->gdo0_pin_, this->gdo2_pin_, 18, 19, 23, remote_id_.data(), center_freq_mhz, deviation_khz));
-            }
+enum QuietCoolDuration {
+    QUIETCOOL_DURATION_1H   = 0x01,
+    QUIETCOOL_DURATION_2H   = 0x02,
+    QUIETCOOL_DURATION_4H   = 0x04,
+    QUIETCOOL_DURATION_8H   = 0x08,
+    QUIETCOOL_DURATION_12H  = 0x0C,
+    QUIETCOOL_DURATION_ON   = 0x0F,
+    QUIETCOOL_DURATION_OFF  = 0x00,
+    QUIETCOOL_DURATION_LAST
+};
 
-            this->qc_->begin();
-            ESP_LOGD(TAG, "QuietCool initialized");
-        }
+class QuietCool {
+  private:
+    static constexpr uint8_t TO_BIT(char c) { return (c == '1') ? 1 : 0; }
 
-        fan::FanTraits QuietCoolFan::get_traits() {
-            return fan::FanTraits(false, true, false, 3);
-        }
+    uint8_t csn_pin;
+    uint8_t gdo0_pin;
+    uint8_t gdo2_pin; // allow -1 for invalid
+    uint8_t sck_pin;
+    uint8_t miso_pin;
+    uint8_t mosi_pin;
+    uint8_t remote_id[7];
+    float   center_freq_mhz;
+    float   deviation_khz;
 
-        void QuietCoolFan::control(const fan::FanCall &call) {
-            float inc_speed = call.get_speed().value_or(-1.0f);
-            ESP_LOGD(TAG, "Control called: state=%s, speed=%s", 
-                     call.get_state().has_value() ? (*call.get_state() ? "ON" : "OFF") : "<unchanged>",
-                     call.get_speed().has_value() ? (std::to_string(inc_speed)).c_str() : "<unchanged>");
-            bool old_state = this->state;
-            if (call.get_state().has_value())
-                this->state = *call.get_state();
+    bool initCC1101();
+    uint8_t readChipVersion();
+    void processBitsFromBytes(const uint8_t* bytes, size_t byte_len, bool send_to_pin);
+    void sendRawData(const uint8_t* data, size_t len);
+    void sendPacket(const uint8_t cmd_code);
+    const uint8_t getCommand(QuietCoolSpeed speed, QuietCoolDuration duration);
+    void logBits(const uint8_t* data, size_t len);
+    // REMOTE_ID is now the name for the unique remote identifier
 
-            QuietCoolSpeed qcspd = QUIETCOOL_SPEED_LOW;
-            QuietCoolDuration qcdur = QUIETCOOL_DURATION_4H;
-            if (call.get_speed().has_value()) {
-                this->speed_ = *call.get_speed();
-                if (this->speed_ < 0.5) qcdur = QUIETCOOL_DURATION_OFF;
-                else if (this->speed_ < 1.5) qcspd = QUIETCOOL_SPEED_LOW;
-                else if (this->speed_ < 2.5) qcspd = QUIETCOOL_SPEED_MEDIUM;
-                else if (this->speed_ < 3.5) qcspd = QUIETCOOL_SPEED_HIGH;
-            } else {
-		qcdur = QUIETCOOL_DURATION_OFF;
-	    }
-            if (this->qc_) this->qc_->send(qcspd, qcdur);
+  public:
+    QuietCool(uint8_t csn, uint8_t gdo0, uint8_t gdo2, uint8_t sck, uint8_t miso, uint8_t mosi, const uint8_t* remote_id_in, float freq_mhz, float deviation_khz);
+    void begin();
+    void send(QuietCoolSpeed speed, QuietCoolDuration duration);
+};
 
-
-            ESP_LOGV(TAG, "Post-update internal state: state=%s speed=%s", 
-                     (this->state ? "ON" : "OFF"),
-                     (std::to_string(this->speed_)).c_str());
-
-            this->write_state_();
-            this->publish_state();
-        }
-
-        void QuietCoolFan::write_state_() {
-            ESP_LOGVV(TAG, "write_state_: driving pins: state=%s ", 
-                      (this->state ? "ON" : "OFF"));
-            ESP_LOGVV(TAG, "write_state_: output calls completed");
-        }
-
-        void QuietCoolFan::dump_config() { LOG_FAN("", "QuietCool fan", this); }
-    }  // namespace quiet_cool
-}  // namespace esphome
+}  // namespace quiet_cool
+}  // namespace esphome 
